@@ -1,23 +1,14 @@
 local M = {
-  M.bufnr = -1,
-  M.winnr = -1,
+  bufnr = -1,
+  winnr = -1,
   pos = {},
+  namespace = vim.api.nvim_create_namespace("luapad_namespace"),
 }
 
 M.set_keymap = function()
   local map_opts = { buffer = M.bufnr, silent = true }
-  vim.api.nvim_buf_set_keymap(
-    "n",
-    "q",
-    M.close,
-    map_opts
-  )
-  vim.keymap.set(
-    {"n","i""},
-    "<c-l>",
-    M.clean,
-    map_opts
-  )
+  vim.api.nvim_buf_set_keymap("n", "q", M.close, map_opts)
+  vim.keymap.set({ "n", "i" }, "<c-l>", M.clean, map_opts)
 end
 
 M.create = function()
@@ -34,7 +25,7 @@ M.create = function()
 
   M.bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(M.bufnr, "filetype", "lua")
-  M.winnr = vim.api.nvim_open_win(M.bufnr, true, pos)
+  M.winnr = vim.api.nvim_open_win(M.bufnr, true, M.pos)
   require("luaplayground.util").load_playgroud(M.bufnr)
 
   M.set_keymap()
@@ -48,26 +39,26 @@ M.create = function()
 end
 
 M.set_autocmd = function()
-    vim.api.nvim_create_autocmd("VimLeavePre", {
-      pattern = "*",
-      callback = function ()
-        require("luaplayground.util").save_plagroud(M.bufnr)
-      end,
-    })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    pattern = "*",
+    callback = function()
+      require("luaplayground.util").save_plagroud(M.bufnr)
+    end,
+  })
 
-    local win_enter_aucmd 
-    win_enter_aucmd = vim.api.nvim_create_autocmd({ "WinEnter" }, {
-        pattern = "*",
-        callback = function()
-            local buftype = vim.api.nvim_buf_get_option(0, "buftype")
-            if buftype ~= "prompt" and buftype ~= "nofile" then
-                vim.schedule(CloseLuapad)
-                vim.api.nvim_del_autocmd(win_enter_aucmd)
-            end
-        end,
-    })
+  local win_enter_aucmd
+  win_enter_aucmd = vim.api.nvim_create_autocmd({ "WinEnter" }, {
+    pattern = "*",
+    callback = function()
+      local buftype = vim.api.nvim_buf_get_option(0, "buftype")
+      if buftype ~= "prompt" and buftype ~= "nofile" then
+        vim.schedule(M.close)
+        vim.api.nvim_del_autocmd(win_enter_aucmd)
+      end
+    end,
+  })
 
-    require("luapad").attach()
+  require("luapad").attach()
 end
 
 M.clean = function()
@@ -79,16 +70,15 @@ M.close = function()
     return
   end
 
-  local clients = vim.lsp.get_active_clients({M.bufnr = M.bufnr})
+  local clients = vim.lsp.get_active_clients({ bufnr = M.bufnr })
   for _, client in ipairs(clients) do
     client.stop()
   end
 
-  require("luapad").detach()
-  save_plagroud()
+  require("luaplayground.util").save_plagroud(M.bufnr)
 
   vim.api.nvim_win_close(M.winnr, true)
-  vim.keymap.set({ "n", "x" }, "<F5>", toggle)
+  vim.keymap.set({ "n", "x" }, "<F5>", M.toggle)
   M.winnr = -1
   M.bufnr = -1
 end
@@ -101,9 +91,27 @@ M.toggle = function()
       vim.api.nvim_win_hide(M.winnr)
       M.winnr = -1
     else
-      M.winnr = vim.api.nvim_open_win(M.bufnr, true, pos)
+      M.winnr = vim.api.nvim_open_win(M.bufnr, true, M.pos)
     end
   end
+end
+
+M.set_virtual_text = function(line, str, color)
+  vim.api.nvim_buf_set_virtual_text(
+    M.bufnr,
+    M.namespace,
+    line,
+    { { tostring(str), color } },
+    {}
+  )
+end
+
+M.show_output = function(msg)
+  print(msg)
+end
+
+M.show_error = function(msg)
+  print(msg)
 end
 
 return M
