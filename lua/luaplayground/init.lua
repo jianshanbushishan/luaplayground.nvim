@@ -5,7 +5,7 @@ M.setup = function(opts)
   config.setup(opts)
 
   local ui = require("luaplayground.ui")
-  vim.keymap.set("n", config.toggle_key, ui.toggle)
+  vim.keymap.set("n", config.val.toggle_key, ui.toggle)
 end
 
 return M

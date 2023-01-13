@@ -7,8 +7,11 @@ local M = {
 
 M.set_keymap = function()
   local map_opts = { buffer = M.bufnr, silent = true }
-  vim.api.nvim_buf_set_keymap("n", "q", M.close, map_opts)
+  vim.keymap.set("n", "q", M.close, map_opts)
   vim.keymap.set({ "n", "i" }, "<c-l>", M.clean, map_opts)
+  vim.keymap.set("n", "R", function()
+    require("luaplayground.util").run(M.bufnr, M.namespace)
+  end, map_opts)
 end
 
 M.create = function()
@@ -39,6 +42,16 @@ M.create = function()
 end
 
 M.set_autocmd = function()
+  local auto_run_cmd = nil
+  local config = require("luaplayground.config").val
+  if config.auto_run then
+    vim.api.nvim_create_autocmd("InsertLeave", {
+        callback = function()
+          require("luaplayground.util").run(M.bufnr, M.namespace)
+        end,
+      })
+  end
+
   vim.api.nvim_create_autocmd("VimLeavePre", {
     pattern = "*",
     callback = function()
@@ -54,11 +67,12 @@ M.set_autocmd = function()
       if buftype ~= "prompt" and buftype ~= "nofile" then
         vim.schedule(M.close)
         vim.api.nvim_del_autocmd(win_enter_aucmd)
+        if auto_run_cmd ~= nil then
+          vim.api.nvim_del_autocmd(auto_run_cmd)
+        end
       end
     end,
   })
-
-  require("luapad").attach()
 end
 
 M.clean = function()
@@ -84,7 +98,7 @@ M.close = function()
 end
 
 M.toggle = function()
-  if M.winnr == -1 then
+  if M.bufnr == -1 then
     M.create()
   else
     if vim.api.nvim_win_is_valid(M.winnr) then
@@ -96,7 +110,7 @@ M.toggle = function()
   end
 end
 
-M.set_virtual_text = function(line, str, color)
+M.add_virtual_text = function(line, str, color)
   vim.api.nvim_buf_set_virtual_text(
     M.bufnr,
     M.namespace,
@@ -106,12 +120,24 @@ M.set_virtual_text = function(line, str, color)
   )
 end
 
-M.show_output = function(msg)
-  print(msg)
+M.show_output = function(output)
+  for line, msg in pairs(output) do
+    local ret = vim.tbl_flatten(msg)
+    local text = table.concat(ret, " | ")
+    M.add_virtual_text(line - 1, text, "Comment")
+  end
 end
 
 M.show_error = function(msg)
-  print(msg)
+  local config = require("luaplayground.config").val
+  local line, error = msg:match("%[string.*%]:(%d+):%s+(.*)")
+  if config.output.virtual_text then
+    local error_msg = "<== " .. error
+    M.add_virtual_text(line - 1, error_msg, "Error")
+  else
+    local error_msg = "line " .. tostring(line) .. ": " .. error
+    vim.notify(error_msg, vim.log.levels.ERROR, { title = "lua playground error" })
+  end
 end
 
 return M

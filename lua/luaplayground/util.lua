@@ -51,49 +51,58 @@ M.load_playgroud = function(bufnr)
   vim.api.nvim_buf_set_lines(bufnr, 0, 0, false, lines)
 end
 
-local function parse_error(msg)
-  return msg:match("%[string.*%]:(.*)")
-end
-
-M.run = function(bufnr)
+M.run = function(bufnr, namespace)
   local lines = M.get_buf_lines(bufnr)
   if lines == nil then
     return
   end
 
-  local f, error_msg = loadstring(table.concat(lines, "\n"))
-  if not f then
-    local _, msg = parse_error(error_msg)
-    vim.notify(msg, vim.log.levels.ERROR, { title = "lua playground" })
+  local ui = require("luaplayground.ui")
+  local config = require("luaplayground.config").val
+  vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
+  local func, error_msg = loadstring(table.concat(lines, "\n"))
+  if func == nil then
+    ui.show_error(error_msg)
     return
   end
 
   local context = {}
-  context.p = M.print
+  context = vim.tbl_extend("force", context, config.context)
   context.print = M.print
 
   M.output = {}
+  M.output_all = {}
   setmetatable(context, { __index = _G })
-  setfenv(f, context)
+  setfenv(func, context)
 
-  local max_count = require("luaplayground.config").val.max_count
+  local max_count = config.max_count
   local success, result = pcall(function()
     debug.sethook(function()
       error("LuapadTimeoutError")
     end, "", max_count)
-    f()
+    func()
   end)
+  debug.sethook()
 
-  local ui = require("luaplayground.ui")
-  if not success and result ~= nil then
-    if result:find("LuapadTimeoutError") then
-      vim.notify("run timeout", vim.log.levels.WARN, { title = "lua playground" })
-    else
-      ui.show_error(result)
+  if not success then
+    if result ~= nil then
+      if result:find("LuapadTimeoutError") then
+        vim.notify("run timeout", vim.log.levels.WARN, { title = "lua playground error" })
+      else
+        ui.show_error(result)
+      end
+    end
+  else
+    if config.output.notify and #M.output_all > 0 then
+      local output = table.concat(M.output_all, "\n")
+      vim.notify(output, vim.log.levels.INFO, { title = "lua playground output" })
     end
   end
 
-  ui.show_output(M.output)
+  local count = vim.tbl_count(M.output)
+  if config.output.virtual_text and count > 0 then
+    ui.show_output(M.output)
+  end
 end
 
 function M.print(...)
@@ -107,9 +116,16 @@ function M.print(...)
 
   for i = 1, size do
     table.insert(str, tostring(vim.inspect(args[i])))
+    local len = #M.output_all
+    if len < 30 then
+      table.insert(M.output_all, vim.inspect(args[i]))
+    elseif len == 30 then
+      table.insert(M.output_all, "and more ...")
+    end
   end
 
-  local line = debug.traceback("", 3):match("^.-]:(%d-):")
+  local stack = debug.traceback()
+  local line = stack:match("^.-]:(%d-):")
   if not line then
     return
   end
@@ -119,10 +135,15 @@ function M.print(...)
     return
   end
 
-  if not M.output[line] then
+  if M.output[line] == nil then
     M.output[line] = {}
   end
-  table.insert(M.output[line], str)
+  local len = #M.output[line]
+  if len < 5 then
+    table.insert(M.output[line], str)
+  elseif len == 5 then
+    table.insert(M.output[line], "...")
+  end
 end
 
 return M
