@@ -2,7 +2,7 @@ local M = {
   bufnr = -1,
   winnr = -1,
   pos = {},
-  namespace = vim.api.nvim_create_namespace("luapad_namespace"),
+  namespace = vim.api.nvim_create_namespace("luaplayground"),
 }
 
 M.set_keymap = function()
@@ -46,11 +46,17 @@ M.set_autocmd = function()
   local config = require("luaplayground.config").val
   if config.auto_run then
     auto_run_cmd = vim.api.nvim_create_autocmd("InsertLeave", {
-        callback = function()
-          require("luaplayground.util").run(M.bufnr, M.namespace)
-        end,
-      })
+      callback = function()
+        require("luaplayground.util").run(M.bufnr, M.namespace)
+      end,
+    })
   end
+
+  local auto_clear_color_cmd = vim.api.nvim_create_autocmd("InsertEnter", {
+    callback = function()
+      vim.api.nvim_buf_clear_namespace(M.bufnr, M.namespace, 0, -1)
+    end,
+  })
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
     pattern = "*",
@@ -67,6 +73,7 @@ M.set_autocmd = function()
       if buftype ~= "prompt" and buftype ~= "nofile" then
         vim.schedule(M.close)
         vim.api.nvim_del_autocmd(win_enter_aucmd)
+        vim.api.nvim_del_autocmd(auto_clear_color_cmd)
         if auto_run_cmd ~= nil then
           vim.api.nvim_del_autocmd(auto_run_cmd)
         end
