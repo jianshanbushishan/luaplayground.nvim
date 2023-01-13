@@ -45,7 +45,7 @@ M.set_autocmd = function()
   local auto_run_cmd = nil
   local config = require("luaplayground.config").val
   if config.auto_run then
-    vim.api.nvim_create_autocmd("InsertLeave", {
+    auto_run_cmd = vim.api.nvim_create_autocmd("InsertLeave", {
         callback = function()
           require("luaplayground.util").run(M.bufnr, M.namespace)
         end,
