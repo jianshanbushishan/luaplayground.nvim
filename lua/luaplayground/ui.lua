@@ -49,6 +49,7 @@ M.set_autocmd = function()
       callback = function()
         require("luaplayground.util").run(M.bufnr, M.namespace)
       end,
+      buffer = M.bufnr,
     })
   end
 
@@ -56,6 +57,7 @@ M.set_autocmd = function()
     callback = function()
       vim.api.nvim_buf_clear_namespace(M.bufnr, M.namespace, 0, -1)
     end,
+    buffer = M.bufnr,
   })
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
@@ -73,10 +75,6 @@ M.set_autocmd = function()
       if buftype ~= "prompt" and buftype ~= "nofile" then
         vim.schedule(M.close)
         vim.api.nvim_del_autocmd(win_enter_aucmd)
-        vim.api.nvim_del_autocmd(auto_clear_color_cmd)
-        if auto_run_cmd ~= nil then
-          vim.api.nvim_del_autocmd(auto_run_cmd)
-        end
       end
     end,
   })
