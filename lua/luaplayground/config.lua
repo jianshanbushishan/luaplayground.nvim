@@ -1,5 +1,3 @@
-local M = { val = nil }
-
 local defaults = {
   toggle_key = "<F5>",
   auto_run = false,
@@ -11,6 +9,8 @@ local defaults = {
   },
   context = {},
 }
+
+local M = { val = defaults }
 
 M.setup = function(opts)
   vim.validate({
@@ -28,7 +28,7 @@ M.setup = function(opts)
     })
   end
 
-  M.val = vim.tbl_extend("force", defaults, opts or {})
+  M.val = vim.tbl_extend("force", M.val, opts or {})
 end
 
 return M

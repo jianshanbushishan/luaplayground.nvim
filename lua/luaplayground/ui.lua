@@ -15,15 +15,23 @@ M.set_keymap = function()
 end
 
 M.create = function()
-  local width = vim.api.nvim_win_get_width(0)
-  local height = vim.api.nvim_win_get_height(0)
   local offset = { 5, 35 }
+  local width = vim.api.nvim_win_get_width(0) - 2 * offset[2]
+  local height = vim.api.nvim_win_get_height(0) - 2 * offset[1]
+
+  if width < 50 then
+    width = 50
+  end
+  if height < 20 then
+    height = 20
+  end
+
   M.pos = {
     relative = "win",
     row = offset[1],
     col = offset[2],
-    width = width - 2 * offset[2],
-    height = height - 2 * offset[1],
+    width = width,
+    height = height,
   }
 
   M.bufnr = vim.api.nvim_create_buf(false, true)
@@ -34,18 +42,17 @@ M.create = function()
   M.set_keymap()
   M.set_autocmd()
   local config = require("luaplayground.config").val
-  if config.init ~= nil then
-    config.init()
+  if config.init_func ~= nil then
+    config.init_func()
   end
 
   vim.cmd("LspStart")
 end
 
 M.set_autocmd = function()
-  local auto_run_cmd = nil
   local config = require("luaplayground.config").val
   if config.auto_run then
-    auto_run_cmd = vim.api.nvim_create_autocmd("InsertLeave", {
+    vim.api.nvim_create_autocmd("InsertLeave", {
       callback = function()
         require("luaplayground.util").run(M.bufnr, M.namespace)
       end,
@@ -53,7 +60,7 @@ M.set_autocmd = function()
     })
   end
 
-  local auto_clear_color_cmd = vim.api.nvim_create_autocmd("InsertEnter", {
+  vim.api.nvim_create_autocmd("InsertEnter", {
     callback = function()
       vim.api.nvim_buf_clear_namespace(M.bufnr, M.namespace, 0, -1)
     end,
