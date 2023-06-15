@@ -123,13 +123,7 @@ M.toggle = function()
 end
 
 M.add_virtual_text = function(line, str, color)
-  vim.api.nvim_buf_set_virtual_text(
-    M.bufnr,
-    M.namespace,
-    line,
-    { { tostring(str), color } },
-    {}
-  )
+  vim.api.nvim_buf_set_virtual_text(M.bufnr, M.namespace, line, { { tostring(str), color } }, {})
 end
 
 M.show_output = function(output)
